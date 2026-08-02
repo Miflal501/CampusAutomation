@@ -1,0 +1,19 @@
+# Ansible
+ansible-project/inventory/hosts.yml
+*.retry
+
+# Netmiko
+netmiko-automation/devices.yaml
+netmiko-automation/logs/
+netmiko-automation/venv/
+netmiko-automation/__pycache__/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# OS/editor junk
+.DS_Store
+*.swp
