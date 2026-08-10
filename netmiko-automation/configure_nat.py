@@ -1,38 +1,3 @@
-#!/usr/bin/env python3
-"""
-configure_routers.py
-EE8203 Project - Router Automation (Netmiko)
-Faculty of Engineering, University of Ruhuna
-
-Automates on R-CORE and R-EDGE:
-    [DONE]  Interface IP addressing   -> configure_interfaces()
-    [DONE]  OSPF configuration        -> configure_ospf()
-    [DONE]  NAT rules (R-EDGE only)   -> configure_nat()
-    [NEXT]  ACL deployment            -> configure_acls()
-
-Design notes:
-    - All device/interface parameters are read from devices.yaml.
-      Nothing device-specific is hardcoded in this file.
-    - Every push function checks the device's current running-config
-      FIRST and only sends commands for what is missing/different.
-      This is what makes re-running the script idempotent - it will
-      not create duplicate "ip address" lines or similar.
-    - The NAT stage additionally performs a cleanup pass: any stale
-      "ip nat inside source list <ACL> interface <outside_if> overload"
-      statement bound to the outside interface (referencing a DIFFERENT
-      ACL than the one in devices.yaml) is detected and removed before
-      the desired statement is pushed. This prevents duplicate/competing
-      PAT rules on the same interface (see logs/ history - this bit us
-      once already when NAT_PERMIT was left behind after renaming to
-      NAT_SOURCE_ACL).
-    - Every attempt (success or failure) is written to a timestamped
-      log file under logs/, in addition to being printed to screen.
-
-Usage:
-    source venv/bin/activate
-    python3 configure_routers.py
-"""
-
 import os
 import re
 import sys
@@ -50,11 +15,7 @@ INVENTORY_FILE = "devices.yaml"
 
 
 def setup_logging():
-    """
-    Create logs/ if missing, and configure a timestamped log file
-    so every run leaves its own record (required for MOP evidence
-    and for demonstrating idempotency across multiple runs).
-    """
+
     os.makedirs("logs", exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     log_path = f"logs/configure_routers_{timestamp}.log"
@@ -113,96 +74,6 @@ def connect(device, logger):
 
     return None
 
-
-
-def configure_interfaces(device, conn, logger):
-
-    hostname = device["hostname"]
-    interfaces = device.get("interfaces", [])
-
-    if not interfaces:
-        logger.warning(f"[{hostname}] No 'interfaces' defined in inventory - skipping")
-        return
-
-    for iface in interfaces:
-        name = iface["name"]
-        ip = iface["ip"]
-        mask = iface["mask"]
-        description = iface.get("description", "")
-
-        try:
-            # --- Idempotency check ---------------------------------
-            current_config = conn.send_command(f"show run interface {name}")
-            desired_line = f"ip address {ip} {mask}"
-
-            if desired_line in current_config:
-                logger.info(f"[{hostname}] {name} already has {ip} {mask} - skipping (idempotent)")
-                continue
-
-            # --- Push config -----------------------------------------
-            config_commands = [
-                f"interface {name}",
-                f"description {description}",
-                f"ip address {ip} {mask}",
-                "no shutdown",
-            ]
-
-            output = conn.send_config_set(config_commands)
-            logger.info(f"[{hostname}] Configured {name} -> {ip} {mask}")
-            logger.debug(output)
-
-        except Exception as e:
-            # Catch per-interface errors so one bad interface entry
-            # doesn't abort the whole device's configuration run.
-            logger.error(f"[{hostname}] Failed to configure {name}: {e}")
-
-
-
-def configure_ospf(device, conn, logger):
-
-    hostname = device["hostname"]
-    process = device.get("ospf_process")
-    networks = device.get("ospf_networks", [])
-
-    if not process or not networks:
-        logger.warning(f"[{hostname}] No 'ospf_process'/'ospf_networks' defined in inventory - skipping OSPF")
-        return
-
-    try:
-        current_ospf_config = conn.send_command("show run | section ^router ospf")
-
-        commands_to_send = []
-
-        # --- Check each network statement --------------------------
-        for net in networks:
-            line = f"network {net['network']} {net['wildcard']} area {net['area']}"
-            if line in current_ospf_config:
-                logger.info(f"[{hostname}] OSPF: '{line}' already present - skipping (idempotent)")
-            else:
-                commands_to_send.append(line)
-
-        # --- Check default-information originate --------------------
-        if device.get("default_route_originate"):
-            dio_line = "default-information originate"
-            if dio_line in current_ospf_config:
-                logger.info(f"[{hostname}] OSPF: '{dio_line}' already present - skipping (idempotent)")
-            else:
-                commands_to_send.append(dio_line)
-
-        # --- Push only what's missing --------------------------------
-        if commands_to_send:
-            full_command_set = [f"router ospf {process}"] + commands_to_send
-            output = conn.send_config_set(full_command_set)
-            logger.info(f"[{hostname}] OSPF updated: {commands_to_send}")
-            logger.debug(output)
-        else:
-            logger.info(f"[{hostname}] OSPF already fully configured - no changes made")
-
-    except Exception as e:
-        logger.error(f"[{hostname}] Failed to configure OSPF: {e}")
-
-
-
 def configure_nat(device, conn, logger):
 
     hostname = device["hostname"]
@@ -248,7 +119,9 @@ def configure_nat(device, conn, logger):
                 logger.info(f"[{hostname}] {iface_name}: applied '{desired}'")
                 logger.debug(output)
 
-
+        # --- 3. Cleanup: remove any STALE overload statement -------------
+        #     bound to the same outside interface but referencing a
+        #     different ACL than the one desired in devices.yaml.
         current_nat = conn.send_command("show run | include ip nat inside source")
 
         stale_pattern = re.compile(
@@ -307,10 +180,8 @@ def main():
             continue  # move on to next router rather than crashing the whole run
 
         try:
-            configure_interfaces(device, conn, logger)
-            configure_ospf(device, conn, logger)
             configure_nat(device, conn, logger)
-
+            # configure_acls(device, conn, logger)
 
         finally:
             conn.disconnect()

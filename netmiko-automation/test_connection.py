@@ -4,8 +4,7 @@ import logging
 from datetime import datetime
 from netmiko import ConnectHandler
 
-# Set up timestamped logging (required per project spec Section 4.1)
-os.makedirs("logs", exist_ok=True)  # ensure logs/ folder exists before writing to it
+os.makedirs("logs", exist_ok=True)  
 timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 logging.basicConfig(
     filename=f"logs/netmiko_test_{timestamp}.log",
@@ -13,12 +12,9 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Load device inventory (no hardcoded params, per spec)
 with open("devices.yaml") as f:
     inventory = yaml.safe_load(f)   # yaml file -> use yaml.safe_load, not json.load
 
-# Combine routers + switches into one list since devices.yaml keeps them
-# under separate top-level keys (not a single "devices" list)
 all_devices = inventory.get("routers", []) + inventory.get("switches", [])
 
 for device in all_devices:
