@@ -1,0 +1,13 @@
+---
+dept_vlan: 30
+dept_vlan_name: VLAN_DMME
+
+uplink_interface:
+  name: GigabitEthernet0/0
+  description: "Trunk uplink to SW-D-DMME"
+
+access_interfaces:
+  - name: GigabitEthernet0/1
+    description: "VPC-DMME-1"
+  - name: GigabitEthernet0/2
+    description: "VPC-DMME-2"

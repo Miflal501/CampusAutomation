@@ -1,0 +1,41 @@
+---
+# roles/access_ports/tasks/main.yml
+# Only access switches define `access_interfaces` in host_vars, so this
+# role is a no-op (skipped tasks) when run against distribution/core
+# switches via the `when` guard - safe to include for every host in site.yml.
+
+- name: Build ios_l2_interfaces config (name/mode/access only - module rejects 'description')
+  set_fact:
+    _access_l2_config: "{{ (_access_l2_config | default([])) + [{'name': item.name, 'mode': 'access', 'access': {'vlan': dept_vlan}}] }}"
+  loop: "{{ access_interfaces | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: access_interfaces is defined
+
+- name: Assign department VLAN to access-facing switchports
+  cisco.ios.ios_l2_interfaces:
+    config: "{{ _access_l2_config }}"
+    state: merged
+  when: access_interfaces is defined
+  register: access_result
+
+- name: Set access port descriptions
+  cisco.ios.ios_config:
+    lines:
+      - "description {{ item.description }}"
+    parents: "interface {{ item.name }}"
+  loop: "{{ access_interfaces | default([]) }}"
+  when: access_interfaces is defined and item.description is defined
+
+- name: Enable spanning-tree portfast + BPDU guard on access ports
+  cisco.ios.ios_config:
+    lines:
+      - "spanning-tree portfast"
+      - "spanning-tree bpduguard enable"
+    parents: "interface {{ item.name }}"
+  loop: "{{ access_interfaces | default([]) }}"
+  when: access_interfaces is defined
+
+- name: Report access port changes
+  debug:
+    msg: "{{ inventory_hostname }}: access port config changed = {{ access_result.changed | default(false) }}"

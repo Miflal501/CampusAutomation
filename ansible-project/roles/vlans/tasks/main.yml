@@ -1,0 +1,35 @@
+---
+# roles/vlans/tasks/main.yml
+# Ensures every VLAN in the master allocation (Section 3.2) exists on
+# this switch. cisco.ios.ios_vlans is a "resource module" - it compares
+# desired state against the device's running config itself, so this
+# task is idempotent by construction (re-running produces "changed: false").
+
+- name: Ensure all master VLANs are present
+  cisco.ios.ios_vlans:
+    config: "{{ vlans_master_list | map('combine', {'state': 'active'}) | list }}"
+    state: merged
+  register: vlans_result
+
+- name: Report VLAN changes
+  debug:
+    msg: "{{ inventory_hostname }}: VLANs changed = {{ vlans_result.changed }}"
+
+# Distribution switches also own the L3 SVI for their department VLAN
+# (inter-VLAN routing backbone, Section 3.1). Only hosts with an `svi`
+# var defined (the distribution group) run this task.
+- name: Configure department SVI on distribution switches
+  cisco.ios.ios_config:
+    parents: "interface Vlan{{ svi.vlan_id }}"
+    lines:
+      - "ip address {{ svi.ip }} {{ svi.mask }}"
+  when: svi is defined
+  register: svi_result
+
+- name: Ensure department SVI is administratively up
+  cisco.ios.ios_interfaces:
+    config:
+      - name: "Vlan{{ svi.vlan_id }}"
+        enabled: true
+  when: svi is defined
+

@@ -1,0 +1,29 @@
+---
+# NOTE: ansible_host, ansible_user, ansible_password, ansible_become,
+# ansible_become_password are intentionally NOT set here. They are
+# generated per-host into inventory/hosts.yml by
+# scripts/generate_inventory.py, reading devices.yaml (the single
+# source of truth already used by the Netmiko scripts) so credentials
+# only ever live in one file.
+ansible_connection: ansible.netcommon.network_cli
+ansible_network_os: cisco.ios.ios
+
+# Master VLAN allocation (Section 3.2) - every switch gets all of these
+# defined; the access/distribution role vars decide which ports use them.
+vlans_master_list:
+  - vlan_id: 10
+    name: VLAN_DEIE
+  - vlan_id: 20
+    name: VLAN_DCEE
+  - vlan_id: 30
+    name: VLAN_DMME
+  - vlan_id: 40
+    name: VLAN_DIS
+  - vlan_id: 99
+    name: MGMT
+  - vlan_id: 100
+    name: NATIVE
+
+native_vlan: 100
+mgmt_vlan: 99
+transit_vlans: []  

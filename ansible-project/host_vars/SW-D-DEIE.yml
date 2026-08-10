@@ -1,0 +1,50 @@
+---
+dept_vlan: 10
+dept_vlan_name: VLAN_DEIE
+
+trunk_interfaces:
+  - name: GigabitEthernet0/0
+    description: "Trunk to SW-CORE"
+  - name: GigabitEthernet0/1
+    description: "Trunk to SW-A-DEIE"
+
+svi:
+  vlan_id: 10
+  ip: 10.10.10.1
+  mask: 255.255.255.0
+
+transit_vlans: [910]
+transit_interfaces:
+  - name: Vlan910
+    ip: 172.16.10.1
+    mask: 255.255.255.252
+    description: "Transit to SW-CORE"
+ospf_process: 1
+ospf_networks:
+  - network: 10.10.10.0
+    wildcard: 0.0.0.255
+    area: 0
+  - network: 172.16.10.0
+    wildcard: 0.0.0.3
+    area: 0
+  - network: 10.99.99.11
+    wildcard: 0.0.0.0
+    area: 0
+access_lists:
+  - name: ACL_DEIE_IN
+    interface: Vlan10
+    direction: in
+    entries:
+      - "permit ip 10.10.10.0 0.0.0.255 10.10.40.0 0.0.0.255"
+      - "deny ip 10.10.10.0 0.0.0.255 10.99.99.0 0.0.0.255"
+      - "deny ip 10.10.10.0 0.0.0.255 10.10.20.0 0.0.0.255"
+      - "deny ip 10.10.10.0 0.0.0.255 10.10.30.0 0.0.0.255"
+      - "permit ip 10.10.10.0 0.0.0.255 any"
+      - "deny ip any any"
+  - name: ACL_MGMT_IN
+    interface: Vlan99
+    direction: in
+    entries:
+      - "permit tcp any any eq 22"
+      - "permit udp host 10.99.99.30 any eq 161"
+      - "deny ip any any"

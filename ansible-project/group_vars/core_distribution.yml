@@ -1,0 +1,10 @@
+---
+switch_role: core_distribution
+# SW-CORE is core-distribution post-redesign: it owns the DIS department
+# SVI (Vlan40) directly, plus transit-link SVIs to all three SW-D-*
+# switches. It should be the STP root for VLAN 40 (the one department
+# VLAN it hosts directly), mirroring the pattern used for the other
+# three department VLANs on their respective distribution switches.
+stp_mode: rapid-pvst
+stp_priority:
+  40: 4096

@@ -1,0 +1,13 @@
+---
+dept_vlan: 10
+dept_vlan_name: VLAN_DEIE
+
+uplink_interface:
+  name: GigabitEthernet0/0
+  description: "Trunk uplink to SW-D-DEIE"
+
+access_interfaces:
+  - name: GigabitEthernet0/1
+    description: "VPC-DEIE-1"
+  - name: GigabitEthernet0/2
+    description: "VPC-DEIE-2"

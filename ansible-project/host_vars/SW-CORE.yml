@@ -1,0 +1,70 @@
+---
+dept_vlan: 40
+dept_vlan_name: VLAN_DIS
+svi:
+  vlan_id: 40
+  ip: 10.10.40.1
+  mask: 255.255.255.0
+
+transit_vlans: [910, 920, 930]
+transit_interfaces:
+  - name: Vlan910
+    ip: 172.16.10.2
+    mask: 255.255.255.252
+    description: "Transit to SW-D-DEIE"
+  - name: Vlan920
+    ip: 172.16.20.2
+    mask: 255.255.255.252
+    description: "Transit to SW-D-DCEE"
+  - name: Vlan930
+    ip: 172.16.30.2
+    mask: 255.255.255.252
+    description: "Transit to SW-D-DMME"
+
+ip_routing: true
+ospf_process: 1
+ospf_networks:
+  - network: 10.10.40.0
+    wildcard: 0.0.0.255
+    area: 0
+  - network: 172.16.10.0
+    wildcard: 0.0.0.3
+    area: 0
+  - network: 172.16.20.0
+    wildcard: 0.0.0.3
+    area: 0
+  - network: 172.16.30.0
+    wildcard: 0.0.0.3
+    area: 0
+  - network: 172.16.1.0
+    wildcard: 0.0.0.3
+    area: 0
+  - network: 10.99.99.0
+    wildcard: 0.0.0.255
+    area: 0
+
+access_lists:
+  - name: ACL_ZABBIX_IN
+    interface: Vlan40
+    direction: in
+    entries:
+      - "permit udp host 10.99.99.30 any eq 161"
+      - "permit ip any any"
+  - name: ACL_DIS_IN
+    interface: Vlan40
+    direction: in
+    entries:
+      - "permit ip 10.10.40.0 0.0.0.255 10.10.10.0 0.0.0.255"
+      - "permit tcp 10.10.40.0 0.0.0.255 eq 80 10.10.20.0 0.0.0.255"
+      - "permit tcp 10.10.40.0 0.0.0.255 eq 443 10.10.20.0 0.0.0.255"
+      - "deny ip 10.10.40.0 0.0.0.255 10.10.20.0 0.0.0.255"
+      - "deny ip 10.10.40.0 0.0.0.255 10.10.30.0 0.0.0.255"
+      - "deny ip 10.10.40.0 0.0.0.255 10.99.99.0 0.0.0.255"
+      - "deny ip any any"
+  - name: ACL_MGMT_IN
+    interface: Vlan99
+    direction: in
+    entries:
+      - "permit tcp any any eq 22"
+      - "permit udp host 10.99.99.30 any eq 161"
+      - "deny ip any any"

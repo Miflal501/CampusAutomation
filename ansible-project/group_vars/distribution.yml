@@ -1,0 +1,13 @@
+---
+switch_role: distribution
+
+# Distribution switches trunk up to SW-CORE and trunk down to their
+# department's access switch. Actual per-host trunk interface names/
+# vlan_id/access_interfaces live in host_vars/<hostname>.yml since they
+# differ per department.
+stp_mode: rapid-pvst
+stp_priority:
+  10: 4096
+  20: 8192
+  30: 12288
+  40: 16384

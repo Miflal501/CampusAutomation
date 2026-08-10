@@ -1,0 +1,5 @@
+logs/*.log
+playbooks/rollback/baselines/*.cfg
+*.retry
+__pycache__/
+venv/

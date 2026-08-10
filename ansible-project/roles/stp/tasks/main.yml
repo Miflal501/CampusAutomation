@@ -1,0 +1,23 @@
+---
+# roles/stp/tasks/main.yml
+# Sets the global STP mode (rapid-pvst, per group_vars) on every switch,
+# then - for distribution switches only - pins VLAN root priority so
+# each department's distribution switch is root for its own VLAN
+# (predictable, loop-free topology instead of default STP elections).
+
+- name: Set global spanning-tree mode
+  cisco.ios.ios_config:
+    lines:
+      - "spanning-tree mode {{ stp_mode }}"
+  register: stp_mode_result
+
+- name: Pin STP root priority per VLAN (distribution switches only)
+  cisco.ios.ios_config:
+    lines:
+      - "spanning-tree vlan {{ item.key }} priority {{ item.value }}"
+  loop: "{{ stp_priority | default({}) | dict2items }}"
+  when: stp_priority is defined
+
+- name: Report STP changes
+  debug:
+    msg: "{{ inventory_hostname }}: STP mode changed = {{ stp_mode_result.changed }}"

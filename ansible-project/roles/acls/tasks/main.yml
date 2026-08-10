@@ -1,0 +1,16 @@
+---
+- name: Define extended ACL entries
+  cisco.ios.ios_config:
+    lines: "{{ item.1 }}"
+    parents: "ip access-list extended {{ item.0.name }}"
+  loop: "{{ access_lists | subelements('entries') }}"
+  loop_control:
+    label: "{{ item.0.name }}: {{ item.1 }}"
+  when: access_lists | length > 0
+
+- name: Apply ACLs to their interfaces
+  cisco.ios.ios_config:
+    lines: "ip access-group {{ item.name }} {{ item.direction }}"
+    parents: "interface {{ item.interface }}"
+  loop: "{{ access_lists }}"
+  when: access_lists | length > 0

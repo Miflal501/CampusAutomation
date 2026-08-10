@@ -1,0 +1,33 @@
+
+- name: Enable ip routing (L3 switching)
+  cisco.ios.ios_config:
+    lines:
+      - ip routing
+  when: ip_routing | default(false)
+- name: Configure transit-link SVIs
+  cisco.ios.ios_config:
+    parents: "interface {{ item.name }}"
+    lines:
+      - "ip address {{ item.ip }} {{ item.mask }}"
+  loop: "{{ transit_interfaces | default([]) }}"
+  when: (transit_interfaces | default([])) | length > 0
+- name: Set transit-link SVI descriptions
+  cisco.ios.ios_config:
+    lines:
+      - "description {{ item.description }}"
+    parents: "interface {{ item.name }}"
+  loop: "{{ transit_interfaces | default([]) }}"
+  when: (transit_interfaces | default([])) | length > 0
+- name: Ensure transit-link SVIs are administratively up
+  cisco.ios.ios_interfaces:
+    config:
+      - name: "{{ item.name }}"
+        enabled: true
+  loop: "{{ transit_interfaces | default([]) }}"
+  when: (transit_interfaces | default([])) | length > 0
+- name: Configure OSPF network statements
+  cisco.ios.ios_config:
+    lines: "network {{ item.network }} {{ item.wildcard }} area {{ item.area }}"
+    parents: "router ospf {{ ospf_process }}"
+  loop: "{{ ospf_networks | default([]) }}"
+  when: (ospf_networks | default([])) | length > 0

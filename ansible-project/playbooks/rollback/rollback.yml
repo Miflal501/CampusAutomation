@@ -1,0 +1,33 @@
+- name: Roll back switches to their clean baseline configuration
+  hosts: switches
+  gather_facts: false
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.ios.ios
+  tasks:
+    - name: Confirm a baseline file exists for this host
+      stat:
+        path: "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg"
+      delegate_to: localhost
+      register: baseline_file
+
+    - name: Fail loudly if no baseline was ever taken for this host
+      fail:
+        msg: >
+          No baseline found for {{ inventory_hostname }} at
+          {{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg -
+          run backup.yml before relying on rollback.
+      when: not baseline_file.stat.exists
+
+    - name: Push the baseline config as the new running-config
+      cisco.ios.ios_config:
+        src: "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg"
+      register: rollback_result
+
+    - name: Save running-config to startup-config after rollback
+      cisco.ios.ios_config:
+        save_when: always
+
+    - name: Report rollback result
+      debug:
+        msg: "{{ inventory_hostname }}: rollback applied, changed = {{ rollback_result.changed }}"

@@ -1,0 +1,40 @@
+---
+# roles/trunking/tasks/main.yml
+# Distribution switches define `trunk_interfaces` (uplink to core +
+# downlink to their access switch). Access switches define a single
+# `uplink_interface` (trunk to their distribution switch, or to
+# SW-CORE in SW-A-DIS's case). Both are handled with the same
+# ios_l2_interfaces resource module call, so the role works for either.
+# SW-CORE currently has neither var defined (no trunk_interfaces in its
+# host_vars yet), so _trunk_iface_list is [] for it - every task below
+# is guarded to skip cleanly rather than error on an empty config.
+
+- name: Build the combined list of trunk interfaces for this host
+  set_fact:
+    _trunk_iface_list: "{{ (trunk_interfaces | default([])) + ([uplink_interface] if uplink_interface is defined else []) }}"
+
+- name: Build ios_l2_interfaces config (name/mode/trunk only - module rejects 'description')
+  set_fact:
+    _trunk_l2_config: "{{ (_trunk_l2_config | default([])) + [{'name': item.name, 'mode': 'trunk', 'trunk': {'encapsulation': 'dot1q', 'native_vlan': native_vlan, 'allowed_vlans': ((vlans_master_list | map(attribute='vlan_id') | list) + (transit_vlans | default([])))}}] }}"
+  loop: "{{ _trunk_iface_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Configure trunk encapsulation and allowed VLANs
+  cisco.ios.ios_l2_interfaces:
+    config: "{{ _trunk_l2_config }}"
+    state: merged
+  register: trunk_result
+  when: _trunk_iface_list | length > 0
+
+- name: Set trunk port descriptions (idempotent, plain ios_config)
+  cisco.ios.ios_config:
+    lines:
+      - "description {{ item.description }}"
+    parents: "interface {{ item.name }}"
+  loop: "{{ _trunk_iface_list }}"
+  when: item.description is defined
+
+- name: Report trunking changes
+  debug:
+    msg: "{{ inventory_hostname }}: trunk config changed = {{ trunk_result.changed | default(false) }}"

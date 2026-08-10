@@ -1,0 +1,50 @@
+- name: Back up current running-config as the rollback baseline
+  hosts: switches
+  gather_facts: false
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.ios.ios
+  tasks:
+    - name: Ensure the baselines directory exists
+      file:
+        path: "{{ playbook_dir }}/baselines"
+        state: directory
+      delegate_to: localhost
+      run_once: true
+
+    - name: "Fetch running-config over CLI"
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: running_config
+
+    - name: Write the RAW running-config
+      copy:
+        content: "{{ running_config.stdout[0] }}"
+        dest: "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.raw.cfg"
+      delegate_to: localhost
+
+    - name: Write a REPLAYABLE baseline
+      copy:
+        content: |
+          {{ running_config.stdout[0].split('\n')
+             | reject('match', '^Building configuration')
+             | reject('match', '^Current configuration')
+             | list
+             | join('\n')
+          }}
+        dest: "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg.tmp"
+      delegate_to: localhost
+
+    - name: Strip banner blocks from the replayable baseline (banner...^C, inclusive)
+      shell: >
+        awk '/^banner /{skip=1; next} skip && /^\^C$/{skip=0; next} skip{next} 1'
+        "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg.tmp"
+        > "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg"
+      delegate_to: localhost
+
+    - name: Remove the temp intermediate file
+      file:
+        path: "{{ playbook_dir }}/baselines/{{ inventory_hostname }}.cfg.tmp"
+        state: absent
+      delegate_to: localhost

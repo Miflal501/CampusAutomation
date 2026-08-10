@@ -1,0 +1,13 @@
+---
+dept_vlan: 20
+dept_vlan_name: VLAN_DCEE
+
+uplink_interface:
+  name: GigabitEthernet0/0
+  description: "Trunk uplink to SW-D-DCEE"
+
+access_interfaces:
+  - name: GigabitEthernet0/1
+    description: "VPC-DCEE-1"
+  - name: GigabitEthernet0/2
+    description: "VPC-DCEE-2"

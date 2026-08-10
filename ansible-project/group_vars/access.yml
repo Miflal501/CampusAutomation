@@ -1,0 +1,7 @@
+---
+switch_role: access
+
+# Access switches just trunk uplink to their distribution switch and
+# provide access ports to end-host VLANs (VPCs). Root guard / STP is
+# left at default cost since these are edge switches, not root bridges.
+stp_mode: rapid-pvst
